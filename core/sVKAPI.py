@@ -37,7 +37,7 @@ class VkAPI:
 
 
         def sendAuthData(authPage: models.Response) -> models.Response:
-            soup: BeautifulSoup = BeautifulSoup(authPage.text, features="html.parser")
+            soup: BeautifulSoup = BeautifulSoup(authPage.text, features = "html.parser")
             inputFields: element.ResultSet = soup.select("form input")
             data: dict = {
                 "_origin": inputFields[0].attrs["value"],
@@ -51,18 +51,18 @@ class VkAPI:
 
 
         def send2FA(authPage: models.Response) -> models.Response:
-            soup: BeautifulSoup = BeautifulSoup(authPage.text, features="html.parser")
+            soup: BeautifulSoup = BeautifulSoup(authPage.text, features = "html.parser")
             url: str = "https://m.vk.com" + soup.find_all("form")[0].attrs["action"]
             data: dict = {
                 "code": input2FA(),
                 "checked": "checked",
                 "remember": 1
             }
-            return self.__mSession.post(url, data=data, headers=headers)
+            return self.__mSession.post(url, data = data, headers = headers)
 
 
         def sendCaptcha(authPage: models.Response) -> models.Response:
-            soup: BeautifulSoup = BeautifulSoup(authPage.text, features="html.parser")
+            soup: BeautifulSoup = BeautifulSoup(authPage.text, features = "html.parser")
             captcha: element.ResultSet = soup.select("img.captcha_img")[0]
 
             fileName: str = "core/_logCaptcha/Captcha_" + datetime.now().strftime("%Y.%m.%d %H:%M") + ".jpg"
@@ -83,6 +83,16 @@ class VkAPI:
                 "captcha_key": inputCaptcha()
             }
             return self.__mSession.post("https://m.vk.com" + url, data = data, headers = headers)
+
+
+        def sendConfirmation(confPage: models.Response) -> models.Response:
+            soup: BeautifulSoup = BeautifulSoup(confPage.text, features = "html.parser")
+            url: str = soup.find_all("form")[0].attrs["action"]
+            data: dict = {
+                "email_denied": 0,
+            }
+            return self.__mSession.post(url, data = data, headers = headers)
+
 
 
 
