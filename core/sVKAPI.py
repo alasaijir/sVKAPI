@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup, element
 from requests import *
 from datetime import datetime
 from PIL import Image, PngImagePlugin
+from pickle import dump, load
+from os import path
 
 class VkAPI:
 
@@ -105,5 +107,22 @@ class VkAPI:
                 return "YES"
             else:
                 raise TypeError
+
+
+        def saveSession():
+            with open("core/session/currentSession.encrypted", "wb") as f:
+                dump(self.__mSession, f)
+            print("SESSION SAVED")
+
+
+        def loadSession():
+            if path.isfile("core/session/currentS.encrypted"):
+                with open("core/session/currentS.encrypted", "rb") as f:
+                    self.__mSession = load(f)
+                print("LOADING SESSION")
+                return True
+            else:
+                print("CANT LOAD SESSION, LOGGING-IN")
+                return False
 
 
