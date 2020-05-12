@@ -48,3 +48,15 @@ class VkAPI:
             return self.__mSession.post("https://login.vk.com/?act=login&soft=1&utf8=1", data = data, headers = headers)
 
 
+        def send2FA(authPage: models.Response) -> models.Response:
+            soup: BeautifulSoup = BeautifulSoup(authPage.text, features="html.parser")
+            url: str = "https://m.vk.com" + soup.find_all("form")[0].attrs["action"]
+            data: dict = {
+                "code": input2FA(),
+                "checked": "checked",
+                "remember": 1
+            }
+            return self.__mSession.post(url, data=data, headers=headers)
+
+
+
