@@ -1,5 +1,7 @@
-from bs4 import *
+from bs4 import BeautifulSoup, element
 from requests import *
+from datetime import datetime
+from PIL import Image, PngImagePlugin
 
 class VkAPI:
 
@@ -57,6 +59,30 @@ class VkAPI:
                 "remember": 1
             }
             return self.__mSession.post(url, data=data, headers=headers)
+
+
+        def sendCaptcha(authPage: models.Response) -> models.Response:
+            soup: BeautifulSoup = BeautifulSoup(authPage.text, features="html.parser")
+            captcha: element.ResultSet = soup.select("img.captcha_img")[0]
+
+            fileName: str = "core/_logCaptcha/Captcha_" + datetime.now().strftime("%Y.%m.%d %H:%M") + ".jpg"
+            with open(fileName, 'wb') as f:
+                r = self.__mSession.get("https://m.vk.com/" + captcha.attrs["src"])
+                f.write(r.content)
+
+            img: PngImagePlugin.PngImageFile = Image.open(fileName)
+            img.show()
+
+            url: str = soup.select("div form")[0].attrs["action"]
+            inputFields: element.ResultSet = soup.select("form input")
+            data = {
+                "captcha_sid": inputFields[0].attrs["value"],
+                "code": inputFields[1].attrs["value"],
+                "checked": "checked",
+                "remember": 1,
+                "captcha_key": inputCaptcha()
+            }
+            return self.__mSession.post("https://m.vk.com" + url, data = data, headers = headers)
 
 
 
