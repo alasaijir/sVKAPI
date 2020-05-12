@@ -1,3 +1,4 @@
+from bs4 import *
 from requests import *
 
 class VkAPI:
@@ -20,9 +21,8 @@ class VkAPI:
         headers: dict = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
                                        " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
 
-
         def sendAuthRequest() -> models.Response:
-            params = {
+            params: dict = {
                 "client_id": self.__mAPIClientID,
                 "display": "mobile",
                 "redirect_uri": "blank.html",
@@ -32,3 +32,19 @@ class VkAPI:
                 "v": self.__mAPIVersion
             }
             return self.__mSession.get("https://oauth.vk.com/authorize", params = params, headers = headers)
+
+
+        def sendAuthData(authPage: models.Response) -> models.Response:
+            soup: BeautifulSoup = BeautifulSoup(authPage.text, features="html.parser")
+            inputFields: element.ResultSet = soup.select("form input")
+            data: dict = {
+                "_origin": inputFields[0].attrs["value"],
+                "ip_h": inputFields[1].find_all("input")[0].attrs["value"],
+                "lg_h": inputFields[2].attrs["value"],
+                "to": inputFields[3].attrs["value"],
+                "email": login,
+                "pass": password,
+            }
+            return self.__mSession.post("https://login.vk.com/?act=login&soft=1&utf8=1", data = data, headers = headers)
+
+
