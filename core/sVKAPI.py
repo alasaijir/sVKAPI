@@ -7,7 +7,7 @@ class VkAPI:
     __mAPIClientID: int = 7249628
     __mAPIVersion: float = 5.103
 
-    __mSession = Session()
+    __mSession: sessions.Session = Session()
 
     def __init__(self, login: str, password: str):
 
@@ -20,3 +20,15 @@ class VkAPI:
         headers: dict = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
                                        " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
 
+
+        def sendAuthRequest() -> models.Response:
+            params = {
+                "client_id": self.__mAPIClientID,
+                "display": "mobile",
+                "redirect_uri": "blank.html",
+                "scope": "notify,friends,photos,audio,video,stories,pages,status,notes,"
+                         "wall,offline,docs,groups,notifications,stats,email",
+                "response_type": "token",
+                "v": self.__mAPIVersion
+            }
+            return self.__mSession.get("https://oauth.vk.com/authorize", params = params, headers = headers)
