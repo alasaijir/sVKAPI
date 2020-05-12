@@ -125,25 +125,23 @@ class VkAPI:
                 print("CANT LOAD SESSION, LOGGING-IN")
                 return False
 
-        auth: models.Response
+        tmp: models.Response
         result: models.Response
         if loadSession():
-            auth = sendAuthRequest()
-            result = sendConfirmation(auth)
+            tmp = sendAuthRequest()
+            result = sendConfirmation(tmp)
         else:
-            temp: models.Response
-
-            auth = sendAuthRequest()
-            temp = sendAuthData(auth)
-            if getPageType(temp) == "2FA":
-                temp = send2FA(temp)
-                if getPageType(temp) == "CAP":
-                    temp = sendCaptcha(temp)
-                    result = sendConfirmation(temp)
-                elif getPageType(temp) == "YES":
-                    result = sendConfirmation(temp)
-            elif getPageType(temp) == "YES":
-                result = sendConfirmation(temp)
+            tmp = sendAuthRequest()
+            tmp = sendAuthData(tmp)
+            if getPageType(tmp) == "2FA":
+                tmp = send2FA(tmp)
+                if getPageType(tmp) == "CAP":
+                    tmp = sendCaptcha(tmp)
+                    result = sendConfirmation(tmp)
+                elif getPageType(tmp) == "YES":
+                    result = sendConfirmation(tmp)
+            elif getPageType(tmp) == "YES":
+                result = sendConfirmation(tmp)
 
         self.__mAccessToken = result.url[45:130]
         print("LOG IN SUCCESSFUL, RETRIEVED TOKEN " + self.__mAccessToken)
