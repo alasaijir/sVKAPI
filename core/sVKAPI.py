@@ -138,6 +138,7 @@ class VkAPI:
                 print("CANT LOAD SECRET TOKEN, TRYING TO LOAD SESSION")
                 return False
 
+
         if not loadToken():
             if loadSession() :
                 tmp = sendAuthRequest()
@@ -161,6 +162,7 @@ class VkAPI:
         print("LOG IN SUCCESSFUL WITH TOKEN " + self.__mAccessToken[0:4] + "***")
         print("-"*170+"|")
 
+
     def __prepareAPIRequest(self, rawData: dict) -> dict:
         data: dict = {
             "access_token": self.__mAccessToken,
@@ -170,8 +172,13 @@ class VkAPI:
             data[key] = value
         return data
 
+
     def usersGet(self, **kwargs) -> dict:
         data: dict = self.__prepareAPIRequest(kwargs)
         return self.__mSession.post(self.__mAPIBaseUrl + "users.get", data = data).json()
 
+
+    def friendsGet(self, **kwargs) -> dict:
+        data = self.__prepareAPIRequest(kwargs)
+        return self.__mSession.post(self.__mAPIBaseUrl + "friends.get", data=data).json()
 
