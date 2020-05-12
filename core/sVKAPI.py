@@ -8,3 +8,12 @@ class VkAPI:
     __mAPIVersion: float = 5.103
 
     __mSession = Session()
+
+    def __init__(self, login: str, password: str):
+
+        def input2FA() -> str:
+            return input("Code: ")
+
+        def inputCaptcha() -> str:
+            return input("Captcha: ")
+
