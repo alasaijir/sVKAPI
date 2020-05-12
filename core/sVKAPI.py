@@ -94,5 +94,16 @@ class VkAPI:
             return self.__mSession.post(url, data = data, headers = headers)
 
 
+        def getPageType(page: models.Response) -> str:
+            soup: BeautifulSoup = BeautifulSoup(page.text, features="html.parser")
+            inputFields: element.ResultSet = soup.select("form input")
+            if inputFields[0].attrs["name"] == "code":
+                return "2FA"
+            if inputFields[0].attrs["name"] == "captcha_sid":
+                return "CAP"
+            if inputFields[0].attrs["name"] == "email_denied":
+                return "YES"
+            else:
+                raise TypeError
 
 
