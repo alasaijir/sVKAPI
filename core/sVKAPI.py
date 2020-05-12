@@ -6,7 +6,6 @@ from pickle import dump, load
 from os import path
 
 class VkAPI:
-
     __mAccessToken: str
     __mAPIBaseUrl: str = "https://api.vk.com/method/"
     __mAPIClientID: int = 7249628
