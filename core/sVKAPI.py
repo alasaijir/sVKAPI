@@ -66,11 +66,10 @@ class VkAPI:
         def sendCaptcha(authPage: models.Response) -> models.Response:
             soup: BeautifulSoup = BeautifulSoup(authPage.text, features = "html.parser")
             captcha: element.ResultSet = soup.select("img.captcha_img")[0]
-
-            fileName: str = "core/_logCaptcha/Captcha_" + datetime.now().strftime("%Y.%m.%d %H:%M") + ".jpg"
+            fileName: str = "core/_logCaptcha/Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
             with open(fileName, 'wb') as f:
-                r: models.Response = self.__mSession.get("https://m.vk.com/" + captcha.attrs["src"])
-                f.write(r.content)
+                captchaResponse: models.Response = self.__mSession.get("https://m.vk.com/" + captcha.attrs["src"])
+                f.write(captchaResponse.content)
 
             img: PngImagePlugin.PngImageFile = Image.open(fileName)
             img.show()
@@ -97,7 +96,7 @@ class VkAPI:
 
 
         def getPageType(page: models.Response) -> str:
-            soup: BeautifulSoup = BeautifulSoup(page.text, features="html.parser")
+            soup: BeautifulSoup = BeautifulSoup(page.text, features = "html.parser")
             inputFields: element.ResultSet = soup.select("form input")
             if inputFields[0].attrs["name"] == "code":
                 return "2FA"
@@ -109,20 +108,45 @@ class VkAPI:
                 raise TypeError
 
 
-        def saveSession():
+        def saveSession() -> bool:
             with open("core/session/currentSession.encrypted", "wb") as f:
                 dump(self.__mSession, f)
             print("SESSION SAVED")
+            return True
 
 
-        def loadSession():
-            if path.isfile("core/session/currentS.encrypted"):
-                with open("core/session/currentS.encrypted", "rb") as f:
+        def loadSession() -> bool:
+            if path.isfile("core/session/currentSession.encrypted"):
+                with open("core/session/currentSession.encrypted", "rb") as f:
                     self.__mSession = load(f)
                 print("LOADING SESSION")
                 return True
             else:
                 print("CANT LOAD SESSION, LOGGING-IN")
                 return False
+
+        auth: models.Response
+        result: models.Response
+        if loadSession():
+            auth = sendAuthRequest()
+            result = sendConfirmation(auth)
+        else:
+            temp: models.Response
+
+            auth = sendAuthRequest()
+            temp = sendAuthData(auth)
+            if getPageType(temp) == "2FA":
+                temp = send2FA(temp)
+                if getPageType(temp) == "CAP":
+                    temp = sendCaptcha(temp)
+                    result = sendConfirmation(temp)
+                elif getPageType(temp) == "YES":
+                    result = sendConfirmation(temp)
+            elif getPageType(temp) == "YES":
+                result = sendConfirmation(temp)
+
+        self.__mAccessToken = result.url[45:130]
+        print("LOG IN SUCCESSFUL, RETRIEVED TOKEN " + self.__mAccessToken)
+        saveSession()
 
 
