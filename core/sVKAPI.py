@@ -4,12 +4,13 @@ from datetime import datetime
 from PIL import Image, PngImagePlugin
 from pickle import dump, load
 from os import path
+from base64 import b64encode, b64decode
 
 class VkAPI:
     __mAccessToken: str
-    __mAPIBaseUrl: str = "https://api.vk.com/method/"
     __mAPIClientID: int = 7249628
     __mAPIVersion: float = 5.103
+    __mAPIBaseUrl: str = "https://api.vk.com/method/"
 
     __mSession: sessions.Session = Session()
 
@@ -110,6 +111,8 @@ class VkAPI:
         def saveSession() -> bool:
             with open("core/session/currentSession.encrypted", "wb") as f:
                 dump(self.__mSession, f)
+            with open("core/session/currentToken.encrypted", "wb") as f:
+                f.write(b64encode(self.__mAccessToken.encode("utf-8")))
             print("SESSION SAVED")
             return True
 
@@ -118,32 +121,56 @@ class VkAPI:
             if path.isfile("core/session/currentSession.encrypted"):
                 with open("core/session/currentSession.encrypted", "rb") as f:
                     self.__mSession = load(f)
-                print("LOADING SESSION")
+                print("SESSION LOADED")
                 return True
             else:
-                print("CANT LOAD SESSION, LOGGING-IN")
+                print("CANT LOAD SESSION, TRYING TO LOGGING-IN")
                 return False
 
-        tmp: models.Response
-        result: models.Response
-        if loadSession():
-            tmp = sendAuthRequest()
-            result = sendConfirmation(tmp)
-        else:
-            tmp = sendAuthRequest()
-            tmp = sendAuthData(tmp)
-            if getPageType(tmp) == "2FA":
-                tmp = send2FA(tmp)
-                if getPageType(tmp) == "CAP":
-                    tmp = sendCaptcha(tmp)
-                    result = sendConfirmation(tmp)
+
+        def loadToken() -> bool:
+            if path.isfile("core/session/currentToken.encrypted"):
+                with open("core/session/currentToken.encrypted", "rb") as f:
+                    self.__mAccessToken = b64decode(f.read()).decode("utf-8")
+                print("SECRET TOKEN LOADED")
+                return True
+            else:
+                print("CANT LOAD SECRET TOKEN, TRYING TO LOAD SESSION")
+                return False
+
+        if not loadToken():
+            if loadSession() :
+                tmp = sendAuthRequest()
+                result = sendConfirmation(tmp)
+                self.__mAccessToken = result.url[45:130]
+            else:
+                tmp = sendAuthRequest()
+                tmp = sendAuthData(tmp)
+                if getPageType(tmp) == "2FA":
+                    tmp = send2FA(tmp)
+                    if getPageType(tmp) == "CAP":
+                        tmp = sendCaptcha(tmp)
+                        result = sendConfirmation(tmp)
+                    elif getPageType(tmp) == "YES":
+                        result = sendConfirmation(tmp)
                 elif getPageType(tmp) == "YES":
                     result = sendConfirmation(tmp)
-            elif getPageType(tmp) == "YES":
-                result = sendConfirmation(tmp)
+                self.__mAccessToken = result.url[45:130]
+            saveSession()
 
-        self.__mAccessToken = result.url[45:130]
-        print("LOG IN SUCCESSFUL, RETRIEVED TOKEN " + self.__mAccessToken)
-        saveSession()
+        print("LOG IN SUCCESSFUL WITH TOKEN " + self.__mAccessToken[0:4] + "***")
+
+    def __prepareAPIRequest(self, rawData: dict) -> dict:
+        data: dict = {
+            "access_token": self.__mAccessToken,
+            "v": self.__mAPIVersion
+        }
+        for key, value in rawData.items():
+            data[key] = value
+        return data
+
+    def usersGet(self, **kwargs) -> dict:
+        data: dict = self.__prepareAPIRequest(kwargs)
+        return self.__mSession.post(self.__mAPIBaseUrl + "users.get", data = data).json()
 
 
