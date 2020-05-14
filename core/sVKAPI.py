@@ -7,13 +7,19 @@ from os import path
 from base64 import b64encode, b64decode
 
 class VkAPI:
-    __mAccessToken: str
+    __mAccessToken: str = ""
     __mCustomToken: str = "N"
+
     __mAPIClientID: int = 7249628
     __mAPIVersion: float = 5.103
     __mAPIBaseUrl: str = "https://api.vk.com/method/"
 
     __mSession: sessions.Session = Session()
+
+    __mLongPollInit: bool = False
+    __mLongPollTs: int = 0
+    __mLongPollServer: str = ""
+    __mLongPollKey: str = ""
 
 
     def __saveSession(self) -> bool:
@@ -185,6 +191,7 @@ class VkAPI:
         self.__mAccessToken = newToken
         print("TOKEN CHANGED " + self.__mAccessToken[0:4] + "***")
 
+    #=====================================BASE API REQUESTS=====================================
 
     def __prepareAPIRequest(self, rawData: dict) -> dict:
         data: dict = {
@@ -203,12 +210,44 @@ class VkAPI:
 
     def friendsGet(self, **kwargs) -> dict:
         data = self.__prepareAPIRequest(kwargs)
-        return self.__mSession.post(self.__mAPIBaseUrl + "friends.get", data=data).json()
+        return self.__mSession.post(self.__mAPIBaseUrl + "friends.get", data = data).json()
 
 
-    def messagesSend(self, **kwargs):
+    def messagesSend(self, **kwargs) -> dict:
         if self.__mCustomToken == "N":
             print("WARNING: MESSAGES CANT BE ACCESSED WITH USUAL TOKEN")
         data = self.__prepareAPIRequest(kwargs)
-        return self.__mSession.post(self.__mAPIBaseUrl + "messages.send", data=data).json()
+        return self.__mSession.post(self.__mAPIBaseUrl + "messages.send", data = data).json()
+
+
+    def messagesGetLongPollServer(self, **kwargs) -> dict:
+        if self.__mCustomToken == "N":
+            print("WARNING: MESSAGES CANT BE ACCESSED WITH USUAL TOKEN")
+        data = self.__prepareAPIRequest(kwargs)
+        return self.__mSession.post(self.__mAPIBaseUrl + "messages.getLongPollServer", data = data).json()
+
+    #============================================================================================
+
+    def setLongPollServer(self, needPts: int = 0, lp_version: int = 3):
+        serverData: dict = self.messagesGetLongPollServer(needPts = needPts, lp_version = lp_version)
+        self.__mLongPollInit = True
+        self.__mLongPollTs = serverData["response"]["ts"]
+        self.__mLongPollKey = serverData["response"]["key"]
+        self.__mLongPollServer = serverData["response"]["server"]
+
+
+    def longPoll(self, mode: int = 202, wait: int = 25, version: int = 3) -> dict:
+        if not self.__mLongPollInit:
+            raise Exception("YOU NEED TO CALL setLongPollServer() BEFORE USING LONGPOLL")
+        data: dict = {
+            "act": "a_check",
+            "key": self.__mLongPollKey,
+            "ts": self.__mLongPollTs,
+            "wait": wait,
+            "mode": mode,
+            "version": version
+        }
+        updates: dict = self.__mSession.post("https://"+self.__mLongPollServer, data = data).json()
+        self.__mLongPollTs = updates["ts"]
+        return updates
 
