@@ -8,11 +8,57 @@ from base64 import b64encode, b64decode
 
 class VkAPI:
     __mAccessToken: str
+    __mCustomToken: str = "N"
     __mAPIClientID: int = 7249628
     __mAPIVersion: float = 5.103
     __mAPIBaseUrl: str = "https://api.vk.com/method/"
 
     __mSession: sessions.Session = Session()
+
+
+    def __saveSession(self) -> bool:
+        with open("core/session/currentSession.encrypted", "wb") as f:
+            dump(self.__mSession, f)
+        with open("core/session/currentToken.encrypted", "wb") as f:
+            f.write(b64encode(self.__mAccessToken.encode("utf-8")))
+            f.write("\n".encode("utf-8"))
+            if self.__mCustomToken == "Y":
+                f.write(b64encode("CUSTOM_TOKEN_Y".encode("utf-8")))
+            else:
+                f.write(b64encode("CUSTOM_TOKEN_N".encode("utf-8")))
+        print("SESSION SAVED")
+        return True
+
+
+    def __loadSession(self) -> bool:
+        if path.isfile("core/session/currentSession.encrypted"):
+            with open("core/session/currentSession.encrypted", "rb") as f:
+                self.__mSession = load(f)
+            print("SESSION LOADED")
+            return True
+        else:
+            print("CANT LOAD SESSION, TRYING TO LOGGING-IN")
+            return False
+
+
+    def __loadToken(self) -> bool:
+        if path.isfile("core/session/currentToken.encrypted"):
+            with open("core/session/currentToken.encrypted", "rb") as f:
+                lines = []
+                for line in f:
+                    lines.append(line)
+                self.__mAccessToken = b64decode(lines[0]).decode("utf-8")
+                self.__mCustomToken = b64decode(lines[1]).decode("utf-8")[13]
+            print("SECRET TOKEN LOADED (", end="")
+            if self.__mCustomToken == "Y":
+                print("CUSTOM)")
+            else:
+                print("USUAL)")
+            return True
+        else:
+            print("CANT LOAD SECRET TOKEN, TRYING TO LOAD SESSION")
+            return False
+
 
     def __init__(self, login: str, password: str):
 
@@ -108,39 +154,8 @@ class VkAPI:
                 raise TypeError
 
 
-        def saveSession() -> bool:
-            with open("core/session/currentSession.encrypted", "wb") as f:
-                dump(self.__mSession, f)
-            with open("core/session/currentToken.encrypted", "wb") as f:
-                f.write(b64encode(self.__mAccessToken.encode("utf-8")))
-            print("SESSION SAVED")
-            return True
-
-
-        def loadSession() -> bool:
-            if path.isfile("core/session/currentSession.encrypted"):
-                with open("core/session/currentSession.encrypted", "rb") as f:
-                    self.__mSession = load(f)
-                print("SESSION LOADED")
-                return True
-            else:
-                print("CANT LOAD SESSION, TRYING TO LOGGING-IN")
-                return False
-
-
-        def loadToken() -> bool:
-            if path.isfile("core/session/currentToken.encrypted"):
-                with open("core/session/currentToken.encrypted", "rb") as f:
-                    self.__mAccessToken = b64decode(f.read()).decode("utf-8")
-                print("SECRET TOKEN LOADED")
-                return True
-            else:
-                print("CANT LOAD SECRET TOKEN, TRYING TO LOAD SESSION")
-                return False
-
-
-        if not loadToken():
-            if loadSession() :
+        if not self.__loadToken():
+            if self.__loadSession() :
                 tmp = sendAuthRequest()
                 result = sendConfirmation(tmp)
                 self.__mAccessToken = result.url[45:130]
@@ -157,10 +172,18 @@ class VkAPI:
                 elif getPageType(tmp) == "YES":
                     result = sendConfirmation(tmp)
                 self.__mAccessToken = result.url[45:130]
-            saveSession()
 
         print("LOG IN SUCCESSFUL WITH TOKEN " + self.__mAccessToken[0:4] + "***")
-        print("-"*170+"|")
+
+
+    def __del__(self):
+        self.__saveSession()
+
+
+    def setToken(self, newToken: str):
+        self.__mCustomToken = "Y"
+        self.__mAccessToken = newToken
+        print("TOKEN CHANGED " + self.__mAccessToken[0:4] + "***")
 
 
     def __prepareAPIRequest(self, rawData: dict) -> dict:
@@ -181,4 +204,11 @@ class VkAPI:
     def friendsGet(self, **kwargs) -> dict:
         data = self.__prepareAPIRequest(kwargs)
         return self.__mSession.post(self.__mAPIBaseUrl + "friends.get", data=data).json()
+
+
+    def messagesSend(self, **kwargs):
+        if self.__mCustomToken == "N":
+            print("WARNING: MESSAGES CANT BE ACCESSED WITH USUAL TOKEN")
+        data = self.__prepareAPIRequest(kwargs)
+        return self.__mSession.post(self.__mAPIBaseUrl + "messages.send", data=data).json()
 
