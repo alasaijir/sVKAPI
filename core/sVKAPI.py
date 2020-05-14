@@ -23,9 +23,9 @@ class VkAPI:
 
 
     def __saveSession(self) -> bool:
-        with open("core/session/currentSession.encrypted", "wb") as f:
+        with open("core/data/currentSession.encrypted", "wb") as f:
             dump(self.__mSession, f)
-        with open("core/session/currentToken.encrypted", "wb") as f:
+        with open("core/data/currentToken.encrypted", "wb") as f:
             f.write(b64encode(self.__mAccessToken.encode("utf-8")))
             f.write("\n".encode("utf-8"))
             if self.__mCustomToken == "Y":
@@ -37,8 +37,8 @@ class VkAPI:
 
 
     def __loadSession(self) -> bool:
-        if path.isfile("core/session/currentSession.encrypted"):
-            with open("core/session/currentSession.encrypted", "rb") as f:
+        if path.isfile("core/data/currentSession.encrypted"):
+            with open("core/data/currentSession.encrypted", "rb") as f:
                 self.__mSession = load(f)
             print("SESSION LOADED")
             return True
@@ -48,8 +48,8 @@ class VkAPI:
 
 
     def __loadToken(self) -> bool:
-        if path.isfile("core/session/currentToken.encrypted"):
-            with open("core/session/currentToken.encrypted", "rb") as f:
+        if path.isfile("core/data/currentToken.encrypted"):
+            with open("core/data/currentToken.encrypted", "rb") as f:
                 lines = []
                 for line in f:
                     lines.append(line)
@@ -118,7 +118,7 @@ class VkAPI:
         def sendCaptcha(authPage: models.Response) -> models.Response:
             soup: BeautifulSoup = BeautifulSoup(authPage.text, features = "html.parser")
             captcha: element.ResultSet = soup.select("img.captcha_img")[0]
-            fileName: str = "core/_logCaptcha/Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
+            fileName: str = "core/captchaLog/Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
             with open(fileName, 'wb') as f:
                 captchaResponse: models.Response = self.__mSession.get("https://m.vk.com/" + captcha.attrs["src"])
                 f.write(captchaResponse.content)
