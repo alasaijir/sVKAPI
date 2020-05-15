@@ -220,6 +220,13 @@ class VkAPI:
         return self.__mSession.post(self.__mAPIBaseUrl + "messages.send", data = data).json()
 
 
+    def messagesGetById(self, **kwargs) -> dict:
+        if self.__mCustomToken == "N":
+            print("WARNING: MESSAGES CANT BE ACCESSED WITH USUAL TOKEN")
+        data = self.__prepareAPIRequest(kwargs)
+        return self.__mSession.post(self.__mAPIBaseUrl + "messages.getById", data = data).json()
+
+
     def messagesGetLongPollServer(self, **kwargs) -> dict:
         if self.__mCustomToken == "N":
             print("WARNING: MESSAGES CANT BE ACCESSED WITH USUAL TOKEN")
@@ -228,7 +235,7 @@ class VkAPI:
 
     #============================================================================================
 
-    def setLongPollServer(self, needPts: int = 0, lp_version: int = 3):
+    def setLongPollServer(self, needPts: int = 1, lp_version: int = 3):
         serverData: dict = self.messagesGetLongPollServer(needPts = needPts, lp_version = lp_version)
         self.__mLongPollInit = True
         self.__mLongPollTs = serverData["response"]["ts"]
@@ -236,7 +243,7 @@ class VkAPI:
         self.__mLongPollServer = serverData["response"]["server"]
 
 
-    def longPoll(self, mode: int = 202, wait: int = 25, version: int = 3) -> dict:
+    def longPoll(self, mode: int = 234, wait: int = 25, version: int = 3) -> dict:
         if not self.__mLongPollInit:
             raise Exception("YOU NEED TO CALL setLongPollServer() BEFORE USING LONGPOLL")
         data: dict = {
