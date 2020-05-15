@@ -166,6 +166,7 @@ class VkAPI:
                 result = sendConfirmation(tmp)
                 self.__mAccessToken = result.url[45:130]
             else:
+                result: models.Response = None
                 tmp = sendAuthRequest()
                 tmp = sendAuthData(tmp)
                 if getPageType(tmp) == "2FA":
@@ -191,52 +192,20 @@ class VkAPI:
         self.__mAccessToken = newToken
         print("TOKEN CHANGED " + self.__mAccessToken[0:4] + "***")
 
-    #=====================================BASE API REQUESTS=====================================
 
-    def __prepareAPIRequest(self, rawData: dict) -> dict:
-        data: dict = {
+    def call(self, method:str, **kwargs) ->dict:
+        data = {
             "access_token": self.__mAccessToken,
             "v": self.__mAPIVersion
         }
-        for key, value in rawData.items():
+
+        for key, value in kwargs.items():
             data[key] = value
-        return data
 
-
-    def usersGet(self, **kwargs) -> dict:
-        data: dict = self.__prepareAPIRequest(kwargs)
-        return self.__mSession.post(self.__mAPIBaseUrl + "users.get", data = data).json()
-
-
-    def friendsGet(self, **kwargs) -> dict:
-        data = self.__prepareAPIRequest(kwargs)
-        return self.__mSession.post(self.__mAPIBaseUrl + "friends.get", data = data).json()
-
-
-    def messagesSend(self, **kwargs) -> dict:
-        if self.__mCustomToken == "N":
-            print("WARNING: MESSAGES CANT BE ACCESSED WITH USUAL TOKEN")
-        data = self.__prepareAPIRequest(kwargs)
-        return self.__mSession.post(self.__mAPIBaseUrl + "messages.send", data = data).json()
-
-
-    def messagesGetById(self, **kwargs) -> dict:
-        if self.__mCustomToken == "N":
-            print("WARNING: MESSAGES CANT BE ACCESSED WITH USUAL TOKEN")
-        data = self.__prepareAPIRequest(kwargs)
-        return self.__mSession.post(self.__mAPIBaseUrl + "messages.getById", data = data).json()
-
-
-    def messagesGetLongPollServer(self, **kwargs) -> dict:
-        if self.__mCustomToken == "N":
-            print("WARNING: MESSAGES CANT BE ACCESSED WITH USUAL TOKEN")
-        data = self.__prepareAPIRequest(kwargs)
-        return self.__mSession.post(self.__mAPIBaseUrl + "messages.getLongPollServer", data = data).json()
-
-    #============================================================================================
+        return self.__mSession.post(self.__mAPIBaseUrl + method, data = data).json()
 
     def setLongPollServer(self, needPts: int = 1, lp_version: int = 3):
-        serverData: dict = self.messagesGetLongPollServer(needPts = needPts, lp_version = lp_version)
+        serverData: dict = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
         self.__mLongPollInit = True
         self.__mLongPollTs = serverData["response"]["ts"]
         self.__mLongPollKey = serverData["response"]["key"]
