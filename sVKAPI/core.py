@@ -6,8 +6,9 @@ from pickle import dump, load
 from os import path
 from base64 import b64encode, b64decode
 
-class VkAPI:
-    __mAccessToken= ""
+class API:
+    __mAccessToken = ""
+    __mAuthPassed = False
     __mCustomToken = "N"
 
     __mAPIClientID = 7249628
