@@ -205,7 +205,9 @@ class VkAPI:
 
 
     def setLongPollServer(self, needPts: int = 1, lp_version: int = 3):
-        serverData: dict = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
+        serverData = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
+        if "error" in serverData and serverData["error"]["error_code"] == 15:
+            raise Exception("CANT ACCESS MESSAGES WITH CURRENT TOKEN (CONSIDER RECEIVING YOUR OWN AND CALL setToken() )")
         self.__mLongPollInit = True
         self.__mLongPollTs = serverData["response"]["ts"]
         self.__mLongPollKey = serverData["response"]["key"]
@@ -215,7 +217,7 @@ class VkAPI:
     def longPoll(self, mode: int = 234, wait: int = 25, version: int = 3) -> dict:
         if not self.__mLongPollInit:
             raise Exception("YOU NEED TO CALL setLongPollServer() BEFORE USING LONGPOLL")
-        data: dict = {
+        data = {
             "act": "a_check",
             "key": self.__mLongPollKey,
             "ts": self.__mLongPollTs,
@@ -223,7 +225,23 @@ class VkAPI:
             "mode": mode,
             "version": version
         }
-        updates: dict = self.__mSession.post("https://"+self.__mLongPollServer, data = data).json()
+        updates = self.__mSession.post("https://"+self.__mLongPollServer, data = data).json()
+        if "failed" in updates:
+            print("BAD LONGPOLL RESPONSE, TRYING FIX...")
+            if updates["failed"] == 2:
+                print("BAD LONGPOLL KEY, TRYING RECEIVE NEW ONE...")
+                self.setLongPollServer()
+                data["key"] = self.__mLongPollKey
+                data["ts"] = self.__mLongPollTs
+                print("NEW KEY RECEIVED, REBOOTING...")
+                updates = self.__mSession.post("https://" + self.__mLongPollServer, data=data).json()
+                if not "failed" in updates:
+                    print("SUCCESS")
+                else:
+                    raise Exception("LONGPOLL ERROR")
+
         self.__mLongPollTs = updates["ts"]
         return updates
+
+
 
