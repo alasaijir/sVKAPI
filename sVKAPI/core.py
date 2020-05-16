@@ -24,11 +24,6 @@ class API:
 
     #Private
 
-    def __del__(self):
-        self.__saveSession()
-        if self.__mAccessToken != "":
-            self.__saveToken()
-
     def __saveSession(self):
         with open("sVKAPI/data/currentSession.encrypted", "wb") as f:
             dump(self.__mSession, f)
@@ -194,12 +189,15 @@ class API:
             print("USUAL TOKEN RECEIVED " + self.__mAccessToken[0:4] + "***")
         else:
             raise AttributeError("NO REQUIRED DATA PASSED (token OR username & password)")
+        self.__saveSession()
+        self.__saveToken()
         self.__mAuthPassed = True
 
     def setToken(self, newToken: str):
         self.__mAuthPassed = True
         self.__mCustomToken = "Y"
         self.__mAccessToken = newToken
+        self.__saveToken()
         print("TOKEN CHANGED " + self.__mAccessToken[0:4] + "***")
 
     def call(self, method:str, **kwargs) -> dict:
