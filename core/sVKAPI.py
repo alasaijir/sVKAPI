@@ -1,25 +1,25 @@
-from bs4 import BeautifulSoup, element
-from requests import *
+from bs4 import BeautifulSoup
+from requests import Session, Response
 from datetime import datetime
-from PIL import Image, PngImagePlugin
+from PIL import Image
 from pickle import dump, load
 from os import path
 from base64 import b64encode, b64decode
 
 class VkAPI:
-    __mAccessToken: str = ""
-    __mCustomToken: str = "N"
+    __mAccessToken= ""
+    __mCustomToken = "N"
 
-    __mAPIClientID: int = 7249628
-    __mAPIVersion: float = 5.103
-    __mAPIBaseUrl: str = "https://api.vk.com/method/"
+    __mAPIClientID = 7249628
+    __mAPIVersion = 5.103
+    __mAPIBaseUrl = "https://api.vk.com/method/"
 
-    __mSession: sessions.Session = Session()
+    __mSession = Session()
 
-    __mLongPollInit: bool = False
-    __mLongPollTs: int = 0
-    __mLongPollServer: str = ""
-    __mLongPollKey: str = ""
+    __mLongPollInit = False
+    __mLongPollTs = 0
+    __mLongPollServer = ""
+    __mLongPollKey = ""
 
 
     def __saveSession(self) -> bool:
@@ -74,11 +74,11 @@ class VkAPI:
         def inputCaptcha() -> str:
             return input("Captcha: ")
 
-        headers: dict = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
                                        " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
 
-        def sendAuthRequest() -> models.Response:
-            params: dict = {
+        def sendAuthRequest() -> Response:
+            params = {
                 "client_id": self.__mAPIClientID,
                 "display": "mobile",
                 "redirect_uri": "blank.html",
@@ -90,10 +90,10 @@ class VkAPI:
             return self.__mSession.get("https://oauth.vk.com/authorize", params = params, headers = headers)
 
 
-        def sendAuthData(authPage: models.Response) -> models.Response:
-            soup: BeautifulSoup = BeautifulSoup(authPage.text, features = "html.parser")
-            inputFields: element.ResultSet = soup.select("form input")
-            data: dict = {
+        def sendAuthData(authPage: Response) -> Response:
+            soup = BeautifulSoup(authPage.text, features = "html.parser")
+            inputFields = soup.select("form input")
+            data = {
                 "_origin": inputFields[0].attrs["value"],
                 "ip_h": inputFields[1].find_all("input")[0].attrs["value"],
                 "lg_h": inputFields[2].attrs["value"],
@@ -104,10 +104,10 @@ class VkAPI:
             return self.__mSession.post("https://login.vk.com/?act=login&soft=1&utf8=1", data = data, headers = headers)
 
 
-        def send2FA(authPage: models.Response) -> models.Response:
-            soup: BeautifulSoup = BeautifulSoup(authPage.text, features = "html.parser")
-            url: str = "https://m.vk.com" + soup.find_all("form")[0].attrs["action"]
-            data: dict = {
+        def send2FA(authPage: Response) -> Response:
+            soup = BeautifulSoup(authPage.text, features = "html.parser")
+            url = "https://m.vk.com" + soup.find_all("form")[0].attrs["action"]
+            data = {
                 "code": input2FA(),
                 "checked": "checked",
                 "remember": 1
@@ -115,20 +115,20 @@ class VkAPI:
             return self.__mSession.post(url, data = data, headers = headers)
 
 
-        def sendCaptcha(authPage: models.Response) -> models.Response:
-            soup: BeautifulSoup = BeautifulSoup(authPage.text, features = "html.parser")
-            captcha: element.ResultSet = soup.select("img.captcha_img")[0]
-            fileName: str = "core/captchaLog/Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
+        def sendCaptcha(authPage: Response) -> Response:
+            soup = BeautifulSoup(authPage.text, features = "html.parser")
+            captcha = soup.select("img.captcha_img")[0]
+            captchaResponse = self.__mSession.get("https://m.vk.com/" + captcha.attrs["src"])
+            fileName = "core/_captchaLog/Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
             with open(fileName, 'wb') as f:
-                captchaResponse: models.Response = self.__mSession.get("https://m.vk.com/" + captcha.attrs["src"])
                 f.write(captchaResponse.content)
 
-            img: PngImagePlugin.PngImageFile = Image.open(fileName)
+            img = Image.open(fileName)
             img.show()
 
-            url: str = soup.select("div form")[0].attrs["action"]
-            inputFields: element.ResultSet = soup.select("form input")
-            data: dict = {
+            url = soup.select("div form")[0].attrs["action"]
+            inputFields = soup.select("form input")
+            data = {
                 "captcha_sid": inputFields[0].attrs["value"],
                 "code": inputFields[1].attrs["value"],
                 "checked": "checked",
@@ -138,18 +138,18 @@ class VkAPI:
             return self.__mSession.post("https://m.vk.com" + url, data = data, headers = headers)
 
 
-        def sendConfirmation(confPage: models.Response) -> models.Response:
-            soup: BeautifulSoup = BeautifulSoup(confPage.text, features = "html.parser")
-            url: str = soup.find_all("form")[0].attrs["action"]
-            data: dict = {
+        def sendConfirmation(confPage: Response) -> Response:
+            soup = BeautifulSoup(confPage.text, features = "html.parser")
+            url = soup.find_all("form")[0].attrs["action"]
+            data = {
                 "email_denied": 0,
             }
             return self.__mSession.post(url, data = data, headers = headers)
 
 
-        def getPageType(page: models.Response) -> str:
-            soup: BeautifulSoup = BeautifulSoup(page.text, features = "html.parser")
-            inputFields: element.ResultSet = soup.select("form input")
+        def getPageType(page: Response) -> str:
+            soup = BeautifulSoup(page.text, features = "html.parser")
+            inputFields = soup.select("form input")
             if inputFields[0].attrs["name"] == "code":
                 return "2FA"
             if inputFields[0].attrs["name"] == "captcha_sid":
@@ -166,7 +166,7 @@ class VkAPI:
                 result = sendConfirmation(tmp)
                 self.__mAccessToken = result.url[45:130]
             else:
-                result: models.Response = None
+                result = None
                 tmp = sendAuthRequest()
                 tmp = sendAuthData(tmp)
                 if getPageType(tmp) == "2FA":
@@ -193,7 +193,7 @@ class VkAPI:
         print("TOKEN CHANGED " + self.__mAccessToken[0:4] + "***")
 
 
-    def call(self, method:str, **kwargs) ->dict:
+    def call(self, method:str, **kwargs) -> dict:
         data = {
             "access_token": self.__mAccessToken,
             "v": self.__mAPIVersion
@@ -203,6 +203,7 @@ class VkAPI:
             data[key] = value
 
         return self.__mSession.post(self.__mAPIBaseUrl + method, data = data).json()
+
 
     def setLongPollServer(self, needPts: int = 1, lp_version: int = 3):
         serverData: dict = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
