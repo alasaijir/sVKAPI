@@ -154,7 +154,7 @@ class VkAPI:
             if inputFields[0].attrs["name"] == "captcha_sid":
                 return "CAP"
             if inputFields[0].attrs["name"] == "email_denied":
-                return "YES"
+                return "CON"
             else:
                 raise TypeError
 
@@ -173,9 +173,9 @@ class VkAPI:
                     if getPageType(tmp) == "CAP":
                         tmp = sendCaptcha(tmp)
                         result = sendConfirmation(tmp)
-                    elif getPageType(tmp) == "YES":
+                    elif getPageType(tmp) == "CON":
                         result = sendConfirmation(tmp)
-                elif getPageType(tmp) == "YES":
+                elif getPageType(tmp) == "CON":
                     result = sendConfirmation(tmp)
                 self.__mAccessToken = result.url[45:130]
 
