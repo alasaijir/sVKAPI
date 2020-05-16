@@ -22,11 +22,31 @@ class API:
     __mLongPollServer = ""
     __mLongPollKey = ""
 
+    #Private
 
-    def __saveSession(self) -> bool:
-        with open("core/data/currentSession.encrypted", "wb") as f:
+    def __del__(self):
+        self.__saveSession()
+        if self.__mAccessToken != "":
+            self.__saveToken()
+
+    def __saveSession(self):
+        with open("sVKAPI/data/currentSession.encrypted", "wb") as f:
             dump(self.__mSession, f)
-        with open("core/data/currentToken.encrypted", "wb") as f:
+        print("SESSION SAVED")
+        return True
+
+    def __loadSession(self) -> bool:
+        if path.isfile("sVKAPI/data/currentSession.encrypted"):
+            with open("sVKAPI/data/currentSession.encrypted", "rb") as f:
+                self.__mSession = load(f)
+            print("SESSION LOADED")
+            return True
+        else:
+            print("CAN'T LOAD SESSION, TRYING TO LOG IN...")
+            return False
+
+    def __saveToken(self):
+        with open("sVKAPI/data/currentToken.encrypted", "wb") as f:
             encryptedData = self.__mAccessToken + "\n"
             if self.__mCustomToken == "Y":
                 encryptedData += "CUSTOM_TOKEN_Y"
@@ -34,35 +54,22 @@ class API:
                 encryptedData += "CUSTOM_TOKEN_N"
             encryptedData = b64encode(b64encode(b64encode(encryptedData.encode("utf-8"))))
             f.write(encryptedData)
-        print("SESSION SAVED")
-        return True
-
-
-    def __loadSession(self) -> bool:
-        if path.isfile("core/data/currentSession.encrypted"):
-            with open("core/data/currentSession.encrypted", "rb") as f:
-                self.__mSession = load(f)
-            print("SESSION LOADED")
-            return True
-        else:
-            print("CANT LOAD SESSION, TRYING TO LOGGING-IN")
-            return False
-
 
     def __loadToken(self) -> bool:
-        if path.isfile("core/data/currentToken.encrypted"):
-            with open("core/data/currentToken.encrypted", "rb") as f:
+        if path.isfile("sVKAPI/data/currentToken.encrypted"):
+            with open("sVKAPI/data/currentToken.encrypted", "rb") as f:
                 lines = b64decode(b64decode(b64decode(f.read()))).decode("utf-8").split("\n")
                 self.__mAccessToken = lines[0]
                 self.__mCustomToken = lines[1][13]
-            print("SECRET TOKEN LOADED (", end="")
+            print("TOKEN LOADED (", end="")
             if self.__mCustomToken == "Y":
-                print("CUSTOM)")
+                print("CUSTOM) ", end="")
             else:
-                print("USUAL)")
+                print("USUAL) ", end="")
+            print(self.__mAccessToken[0:4] + "***")
             return True
         else:
-            print("CANT LOAD SECRET TOKEN, TRYING TO LOAD SESSION")
+            print("CAN'T LOAD TOKEN, TRYING TO AUTHENTICATE...")
             return False
 
 
