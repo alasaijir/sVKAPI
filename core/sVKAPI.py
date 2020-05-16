@@ -26,12 +26,13 @@ class VkAPI:
         with open("core/data/currentSession.encrypted", "wb") as f:
             dump(self.__mSession, f)
         with open("core/data/currentToken.encrypted", "wb") as f:
-            f.write(b64encode(self.__mAccessToken.encode("utf-8")))
-            f.write("\n".encode("utf-8"))
+            encryptedData = self.__mAccessToken + "\n"
             if self.__mCustomToken == "Y":
-                f.write(b64encode("CUSTOM_TOKEN_Y".encode("utf-8")))
+                encryptedData += "CUSTOM_TOKEN_Y"
             else:
-                f.write(b64encode("CUSTOM_TOKEN_N".encode("utf-8")))
+                encryptedData += "CUSTOM_TOKEN_N"
+            encryptedData = b64encode(b64encode(b64encode(encryptedData.encode("utf-8"))))
+            f.write(encryptedData)
         print("SESSION SAVED")
         return True
 
@@ -50,11 +51,9 @@ class VkAPI:
     def __loadToken(self) -> bool:
         if path.isfile("core/data/currentToken.encrypted"):
             with open("core/data/currentToken.encrypted", "rb") as f:
-                lines = []
-                for line in f:
-                    lines.append(line)
-                self.__mAccessToken = b64decode(lines[0]).decode("utf-8")
-                self.__mCustomToken = b64decode(lines[1]).decode("utf-8")[13]
+                lines = b64decode(b64decode(b64decode(f.read()))).decode("utf-8").split("\n")
+                self.__mAccessToken = lines[0]
+                self.__mCustomToken = lines[1][13]
             print("SECRET TOKEN LOADED (", end="")
             if self.__mCustomToken == "Y":
                 print("CUSTOM)")
