@@ -72,6 +72,9 @@ class API:
             print("CAN'T LOAD TOKEN, TRYING TO AUTHENTICATE...")
             return False
 
+    def __checkAuth(self):
+        if not self.__mAuthPassed:
+            raise RuntimeError("CANT CALL THIS METHOD: authenticate() WASN'T CALLED")
 
     def __init__(self, login: str, password: str):
 
