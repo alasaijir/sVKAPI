@@ -76,7 +76,9 @@ class API:
         if not self.__mAuthPassed:
             raise RuntimeError("CANT CALL THIS METHOD: authenticate() WASN'T CALLED")
 
-    def __init__(self, login: str, password: str):
+    #Public
+
+    def authenticate(self, **kwargs):
 
         def input2FA() -> str:
             return input("Code: ")
@@ -84,10 +86,7 @@ class API:
         def inputCaptcha() -> str:
             return input("Captcha: ")
 
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-                                       " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
-
-        def sendAuthRequest() -> Response:
+        def sendAuthRequest(header: dict) -> Response:
             params = {
                 "client_id": self.__mAPIClientID,
                 "display": "mobile",
@@ -97,10 +96,9 @@ class API:
                 "response_type": "token",
                 "v": self.__mAPIVersion
             }
-            return self.__mSession.get("https://oauth.vk.com/authorize", params = params, headers = headers)
+            return self.__mSession.get("https://oauth.vk.com/authorize", params = params, headers = header)
 
-
-        def sendAuthData(authPage: Response) -> Response:
+        def sendAuthData(authPage: Response, login: str, password: str, header: dict) -> Response:
             soup = BeautifulSoup(authPage.text, features = "html.parser")
             inputFields = soup.select("form input")
             data = {
@@ -111,10 +109,9 @@ class API:
                 "email": login,
                 "pass": password,
             }
-            return self.__mSession.post("https://login.vk.com/?act=login&soft=1&utf8=1", data = data, headers = headers)
+            return self.__mSession.post("https://login.vk.com/?act=login&soft=1&utf8=1", data = data, headers = header)
 
-
-        def send2FA(authPage: Response) -> Response:
+        def send2FA(authPage: Response, header: dict) -> Response:
             soup = BeautifulSoup(authPage.text, features = "html.parser")
             url = "https://m.vk.com" + soup.find_all("form")[0].attrs["action"]
             data = {
@@ -122,14 +119,13 @@ class API:
                 "checked": "checked",
                 "remember": 1
             }
-            return self.__mSession.post(url, data = data, headers = headers)
+            return self.__mSession.post(url, data = data, headers = header)
 
-
-        def sendCaptcha(authPage: Response) -> Response:
+        def sendCaptcha(authPage: Response, header: dict) -> Response:
             soup = BeautifulSoup(authPage.text, features = "html.parser")
             captcha = soup.select("img.captcha_img")[0]
             captchaResponse = self.__mSession.get("https://m.vk.com/" + captcha.attrs["src"])
-            fileName = "core/_captchaLog/Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
+            fileName = "sVKAPI/_captchaLog/Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
             with open(fileName, 'wb') as f:
                 f.write(captchaResponse.content)
 
@@ -145,17 +141,15 @@ class API:
                 "remember": 1,
                 "captcha_key": inputCaptcha()
             }
-            return self.__mSession.post("https://m.vk.com" + url, data = data, headers = headers)
+            return self.__mSession.post("https://m.vk.com" + url, data = data, headers = header)
 
-
-        def sendConfirmation(confPage: Response) -> Response:
+        def sendConfirmation(confPage: Response, header: dict) -> Response:
             soup = BeautifulSoup(confPage.text, features = "html.parser")
             url = soup.find_all("form")[0].attrs["action"]
             data = {
                 "email_denied": 0,
             }
-            return self.__mSession.post(url, data = data, headers = headers)
-
+            return self.__mSession.post(url, data = data, headers = header)
 
         def getPageType(page: Response) -> str:
             soup = BeautifulSoup(page.text, features = "html.parser")
@@ -169,41 +163,47 @@ class API:
             else:
                 raise TypeError
 
-
-        if not self.__loadToken():
+        if self.__loadToken():
+            if len(kwargs) > 0:
+                print("PROVIDED DATA WAS IGNORED")
+        elif "token" in kwargs:
+            self.__mAccessToken = kwargs["token"]
+            self.__mCustomToken = "Y"
+            print("CUSTOM TOKEN RECEIVED: " + self.__mAccessToken[0:4] + "***")
+        elif "username" in kwargs and "password" in kwargs:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                                    "(KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
             if self.__loadSession() :
-                tmp = sendAuthRequest()
-                result = sendConfirmation(tmp)
+                tmp = sendAuthRequest(headers)
+                result = sendConfirmation(tmp, headers)
                 self.__mAccessToken = result.url[45:130]
             else:
                 result = None
-                tmp = sendAuthRequest()
-                tmp = sendAuthData(tmp)
+                tmp = sendAuthRequest(headers)
+                tmp = sendAuthData(tmp, kwargs["username"], kwargs["password"], headers)
                 if getPageType(tmp) == "2FA":
-                    tmp = send2FA(tmp)
+                    tmp = send2FA(tmp, headers)
                     if getPageType(tmp) == "CAP":
-                        tmp = sendCaptcha(tmp)
-                        result = sendConfirmation(tmp)
+                        tmp = sendCaptcha(tmp, headers)
+                        result = sendConfirmation(tmp, headers)
                     elif getPageType(tmp) == "CON":
-                        result = sendConfirmation(tmp)
+                        result = sendConfirmation(tmp, headers)
                 elif getPageType(tmp) == "CON":
-                    result = sendConfirmation(tmp)
+                    result = sendConfirmation(tmp, headers)
                 self.__mAccessToken = result.url[45:130]
-
-        print("LOG IN SUCCESSFUL WITH TOKEN " + self.__mAccessToken[0:4] + "***")
-
-
-    def __del__(self):
-        self.__saveSession()
-
+            print("USUAL TOKEN RECEIVED " + self.__mAccessToken[0:4] + "***")
+        else:
+            raise AttributeError("NO REQUIRED DATA PASSED (token OR username & password)")
+        self.__mAuthPassed = True
 
     def setToken(self, newToken: str):
+        self.__mAuthPassed = True
         self.__mCustomToken = "Y"
         self.__mAccessToken = newToken
         print("TOKEN CHANGED " + self.__mAccessToken[0:4] + "***")
 
-
     def call(self, method:str, **kwargs) -> dict:
+        self.__checkAuth()
         data = {
             "access_token": self.__mAccessToken,
             "v": self.__mAPIVersion
@@ -214,8 +214,8 @@ class API:
 
         return self.__mSession.post(self.__mAPIBaseUrl + method, data = data).json()
 
-
     def setLongPollServer(self, needPts: int = 1, lp_version: int = 3):
+        self.__checkAuth()
         serverData = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
         if "error" in serverData and serverData["error"]["error_code"] == 15:
             raise Exception("CANT ACCESS MESSAGES WITH CURRENT TOKEN (CONSIDER RECEIVING YOUR OWN AND CALL setToken() )")
@@ -224,8 +224,8 @@ class API:
         self.__mLongPollKey = serverData["response"]["key"]
         self.__mLongPollServer = serverData["response"]["server"]
 
-
     def longPoll(self, mode: int = 234, wait: int = 25, version: int = 3) -> dict:
+        self.__checkAuth()
         if not self.__mLongPollInit:
             raise Exception("YOU NEED TO CALL setLongPollServer() BEFORE USING LONGPOLL")
         data = {
