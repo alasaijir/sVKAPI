@@ -1,7 +1,7 @@
 # sVKAPI - Easy lib for studying vk api
 
 Еще одна библиотека для работы с VK API.
-Пока ее нигде нет, нужно просто добавить папку sVKAPI в своей проект:
+Для установки нужно написать в консоль `pip install svkapi`, а затем импортировать:
 
 `from sVKAPI.core import *`
 
