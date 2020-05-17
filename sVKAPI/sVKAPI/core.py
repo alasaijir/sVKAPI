@@ -25,14 +25,14 @@ class API:
     #Private
 
     def __saveSession(self):
-        with open("sVKAPI/data/currentSession.encrypted", "wb") as f:
+        with open("currentSession.encrypted", "wb") as f:
             dump(self.__mSession, f)
         print("SESSION SAVED")
         return True
 
     def __loadSession(self) -> bool:
-        if path.isfile("sVKAPI/data/currentSession.encrypted"):
-            with open("sVKAPI/data/currentSession.encrypted", "rb") as f:
+        if path.isfile("currentSession.encrypted"):
+            with open("currentSession.encrypted", "rb") as f:
                 self.__mSession = load(f)
             print("SESSION LOADED")
             return True
@@ -41,7 +41,7 @@ class API:
             return False
 
     def __saveToken(self):
-        with open("sVKAPI/data/currentToken.encrypted", "wb") as f:
+        with open("currentToken.encrypted", "wb") as f:
             encryptedData = self.__mAccessToken + "\n"
             if self.__mCustomToken == "Y":
                 encryptedData += "CUSTOM_TOKEN_Y"
@@ -51,8 +51,8 @@ class API:
             f.write(encryptedData)
 
     def __loadToken(self) -> bool:
-        if path.isfile("sVKAPI/data/currentToken.encrypted"):
-            with open("sVKAPI/data/currentToken.encrypted", "rb") as f:
+        if path.isfile("currentToken.encrypted"):
+            with open("currentToken.encrypted", "rb") as f:
                 lines = b64decode(b64decode(b64decode(f.read()))).decode("utf-8").split("\n")
                 self.__mAccessToken = lines[0]
                 self.__mCustomToken = lines[1][13]
@@ -120,7 +120,7 @@ class API:
             soup = BeautifulSoup(authPage.text, features = "html.parser")
             captcha = soup.select("img.captcha_img")[0]
             captchaResponse = self.__mSession.get("https://m.vk.com/" + captcha.attrs["src"])
-            fileName = "sVKAPI/_captchaLog/Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
+            fileName = "Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
             with open(fileName, 'wb') as f:
                 f.write(captchaResponse.content)
 

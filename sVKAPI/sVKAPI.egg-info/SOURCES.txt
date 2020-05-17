@@ -1,0 +1,8 @@
+setup.py
+sVKAPI/__init__.py
+sVKAPI/core.py
+sVKAPI.egg-info/PKG-INFO
+sVKAPI.egg-info/SOURCES.txt
+sVKAPI.egg-info/dependency_links.txt
+sVKAPI.egg-info/requires.txt
+sVKAPI.egg-info/top_level.txt
