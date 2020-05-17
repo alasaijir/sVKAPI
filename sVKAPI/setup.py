@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='sVKAPI',
-      version='1.0.0.1.2',
+      version='1.0.0.1.3',
       description='Library for using VK API',
       url='https://github.com/alasaijir/sVKAPI',
       packages=['sVKAPI'],
