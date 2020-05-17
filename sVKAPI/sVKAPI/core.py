@@ -6,6 +6,7 @@ from pickle import dump, load
 from os import path
 from base64 import b64encode, b64decode
 
+
 class API:
     __mAccessToken = ""
     __mAuthPassed = False
