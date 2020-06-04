@@ -265,5 +265,10 @@ class API:
         self.__mLongPollTs = updates["ts"]
         return updates
 
+    def handleLongPollMessage(self, eventObj: dict) -> dict:
+        if eventObj[0] != 4:
+            raise Exception("HANDLING NON-MESSAGE EVENT (EVENT CODE SHOULD BE 4)")
+        return self.call("messages.getById", message_ids=eventObj[1], extended=1)["response"]["items"][0]
+
 
 
