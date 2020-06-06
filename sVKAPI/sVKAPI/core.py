@@ -217,17 +217,17 @@ class API:
 
         return self.__mSession.post(self.__mAPIBaseUrl + method, data = data).json()
 
-    def uploadDoc(self, type: str, fileName: str) -> dict:
-        if type == "audio_message":
-            url = self.call("docs.getUploadServer", type=type)["response"]["upload_url"]
-            files = {"file": open(fileName, "rb")}
-            fileObj = self.__mSession.post(url, files=files).json()
-            try:
-                fileObj["file"]
-            except KeyError:
-                print(fileObj)
-                raise FileExistsError("FILE WAS NOT UPLOADED")
-            return self.call("docs.save", file=fileObj["file"])
+    def uploadDoc(self, fileType: str, fileName: str) -> dict:
+        self.__checkAuth()
+        url = self.call("docs.getUploadServer", type=fileType)["response"]["upload_url"]
+        files = {"file": open(fileName, "rb")}
+        fileObj = self.__mSession.post(url, files=files).json()
+        try:
+            fileObj["file"]
+        except KeyError:
+            print(fileObj)
+            raise FileExistsError("FILE WAS NOT UPLOADED")
+        return self.call("docs.save", file=fileObj["file"])
 
     def setLongPollServer(self, needPts: int = 1, lp_version: int = 3):
         self.__checkAuth()
