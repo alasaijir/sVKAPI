@@ -241,8 +241,7 @@ class API:
 
     def longPoll(self, mode: int = 234, wait: int = 25, version: int = 3) -> dict:
         self.__checkAuth()
-        if not self.__mLongPollInit:
-            raise Exception("YOU NEED TO CALL setLongPollServer() BEFORE USING LONGPOLL")
+        self.__checkLongPollInit()
         data = {
             "act": "a_check",
             "key": self.__mLongPollKey,
@@ -270,8 +269,10 @@ class API:
         return updates
 
     def handleLongPollMessage(self, eventObj: dict) -> dict:
+        self.__checkAuth()
+        self.__checkLongPollInit()
         if eventObj[0] != 4:
-            raise Exception("HANDLING NON-MESSAGE EVENT (EVENT CODE SHOULD BE 4)")
+            raise RuntimeError("HANDLING NON-MESSAGE EVENT (EVENT CODE SHOULD BE 4)")
         return self.call("messages.getById", message_ids=eventObj[1], extended=1)["response"]["items"][0]
 
 
