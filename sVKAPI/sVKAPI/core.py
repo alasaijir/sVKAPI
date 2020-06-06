@@ -72,6 +72,10 @@ class API:
         if not self.__mAuthPassed:
             raise RuntimeError("CANT CALL THIS METHOD: authenticate() WASN'T CALLED")
 
+    def __checkLongPollInit(self):
+        if not self.__mLongPollInit:
+            raise RuntimeError("YOU NEED TO CALL setLongPollServer() BEFORE USING LONGPOLL")
+
     #Public
 
     def authenticate(self, **kwargs):
