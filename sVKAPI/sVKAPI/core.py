@@ -9,7 +9,6 @@ from base64 import b64encode, b64decode
 
 class API:
     __mAccessToken = ""
-    __mCustomToken = "N"
 
     __mAPIClientID = 7249628
     __mAPIVersion = 5.103
@@ -24,46 +23,37 @@ class API:
     #Private
 
     def __saveSession(self):
-        with open("currentSession.encrypted", "wb") as f:
+        with open("curSession.enc", "wb") as f:
             dump(self.__mSession, f)
-        print("SESSION SAVED")
         return True
 
     def __loadSession(self) -> bool:
-        if path.isfile("currentSession.encrypted"):
-            with open("currentSession.encrypted", "rb") as f:
+        if path.isfile("curSession.enc"):
+            with open("curSession.enc", "rb") as f:
                 self.__mSession = load(f)
-            print("SESSION LOADED")
             return True
         else:
-            print("CAN'T LOAD SESSION, TRYING TO LOG IN...")
             return False
 
     def __saveToken(self):
-        with open("currentToken.encrypted", "wb") as f:
+        with open("curToken.enc", "wb") as f:
             encryptedData = self.__mAccessToken + "\n"
-            if self.__mCustomToken == "Y":
-                encryptedData += "CUSTOM_TOKEN_Y"
-            else:
-                encryptedData += "CUSTOM_TOKEN_N"
+            encryptedData += "CUSTOM_TOKEN_*_Lorem ipsum dolor sit amet, consectetur adipiscing elit, " \
+                             "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim " \
+                             "veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo " \
+                             "consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum " \
+                             "dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, " \
+                             "sunt in culpa qui officia deserunt mollit anim id est laborum."
             encryptedData = b64encode(b64encode(b64encode(encryptedData.encode("utf-8"))))
             f.write(encryptedData)
 
     def __loadToken(self) -> bool:
-        if path.isfile("currentToken.encrypted"):
-            with open("currentToken.encrypted", "rb") as f:
+        if path.isfile("curToken.enc"):
+            with open("curToken.enc", "rb") as f:
                 lines = b64decode(b64decode(b64decode(f.read()))).decode("utf-8").split("\n")
                 self.__mAccessToken = lines[0]
-                self.__mCustomToken = lines[1][13]
-            print("TOKEN LOADED (", end="")
-            if self.__mCustomToken == "Y":
-                print("CUSTOM) ", end="")
-            else:
-                print("USUAL) ", end="")
-            print(self.__mAccessToken[0:4] + "***")
             return True
         else:
-            print("CAN'T LOAD TOKEN, TRYING TO AUTHENTICATE...")
             return False
 
     #Public
@@ -154,12 +144,9 @@ class API:
                 raise TypeError
 
         if self.__loadToken():
-            if len(kwargs) > 0:
-                print("PROVIDED DATA WAS IGNORED")
+            pass
         elif "token" in kwargs:
             self.__mAccessToken = kwargs["token"]
-            self.__mCustomToken = "Y"
-            print("CUSTOM TOKEN RECEIVED: " + self.__mAccessToken[0:4] + "***")
         elif "username" in kwargs and "password" in kwargs:
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                                     "(KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"}
@@ -181,15 +168,12 @@ class API:
                 elif getPageType(tmp) == "CON":
                     result = sendConfirmation(tmp, headers)
                 self.__mAccessToken = result.url[45:130]
-            print("USUAL TOKEN RECEIVED " + self.__mAccessToken[0:4] + "***")
         else:
-            raise AttributeError("NO REQUIRED DATA PASSED (token OR username & password)")
+            raise RuntimeError("NO REQUIRED DATA PASSED (token OR username & password)")
         self.__saveSession()
         self.__saveToken()
-        self.__mAuthPassed = True
 
     def setToken(self, newToken: str):
-        self.__mCustomToken = "Y"
         self.__mAccessToken = newToken
         self.__saveToken()
 
@@ -211,14 +195,13 @@ class API:
         try:
             fileObj["file"]
         except KeyError:
-            raise FileExistsError("FILE WAS NOT UPLOADED")
+            raise RuntimeError("FILE WAS NOT UPLOADED")
         return self.call("docs.save", file=fileObj["file"])
 
     def setLongPollServer(self, needPts: int = 0, lp_version: int = 3):
         serverData = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
         if "error" in serverData and serverData["error"]["error_code"] == 15:
             raise Exception("CANT ACCESS MESSAGES WITH CURRENT TOKEN (CONSIDER RECEIVING YOUR OWN AND CALL setToken() )")
-        self.__mLongPollInit = True
         self.__mLongPollTs = serverData["response"]["ts"]
         self.__mLongPollKey = serverData["response"]["key"]
         self.__mLongPollServer = serverData["response"]["server"]
@@ -234,18 +217,13 @@ class API:
         }
         updates = self.__mSession.post("https://"+self.__mLongPollServer, data = data).json()
         if "failed" in updates:
-            print("BAD LONGPOLL RESPONSE, TRYING FIX...")
             if updates["failed"] == 2:
-                print("BAD LONGPOLL KEY, TRYING RECEIVE NEW ONE...")
                 self.setLongPollServer()
                 data["key"] = self.__mLongPollKey
                 data["ts"] = self.__mLongPollTs
-                print("NEW KEY RECEIVED, REBOOTING...")
                 updates = self.__mSession.post("https://" + self.__mLongPollServer, data=data).json()
-                if not "failed" in updates:
-                    print("SUCCESS")
-                else:
-                    raise Exception("LONGPOLL ERROR")
+                if "failed" in updates:
+                    raise RuntimeError("LONGPOLL ERROR")
 
         self.__mLongPollTs = updates["ts"]
         return updates
