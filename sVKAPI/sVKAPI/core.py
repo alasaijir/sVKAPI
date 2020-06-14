@@ -231,7 +231,9 @@ class API:
             "mode": mode,
             "version": version
         }
+
         updates = self.__mSession.post("https://"+self.__mLongPollServer, data = data).json()
+
         if "failed" in updates:
             if updates["failed"] == 2:
                 setLongPollServer()
@@ -245,6 +247,10 @@ class API:
         return updates["updates"]
 
     def handleLongPollMessage(self, eventObj: list) -> dict:
+
+        if eventObj[0] != 4:
+            raise APIError(-1, "HANDLING NON-MESSAGE EVENT")
+
         return self.call("messages.getById", message_ids=eventObj[1], extended=1)["response"]["items"][0]
 
 
