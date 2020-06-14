@@ -6,6 +6,13 @@ from pickle import dump, load
 from os import path
 from base64 import b64encode, b64decode
 
+class APIError(Exception):
+    mCode: int
+    mMessage: str
+
+    def __init__(self, code: int, message: str):
+        self.mCode = code
+        self.mMessage = message
 
 class API:
     __mAccessToken = ""
@@ -15,6 +22,7 @@ class API:
     __mAPIBaseUrl = "https://api.vk.com/method/"
 
     __mSession = Session()
+
 
     __mLongPollTs = 0
     __mLongPollServer = ""
@@ -71,38 +79,37 @@ class API:
                 "client_id": self.__mAPIClientID,
                 "display": "mobile",
                 "redirect_uri": "blank.html",
-                "scope": "notify,friends,photos,audio,video,stories,pages,status,notes,"
-                         "wall,offline,docs,groups,notifications,stats,email",
+                "scope": "notify,friends,photos,audio,video,stories,pages,status,wall,offline,docs,groups,notifications,stats,email",
                 "response_type": "token",
                 "v": self.__mAPIVersion
             }
-            return self.__mSession.get("https://oauth.vk.com/authorize", params = params, headers = header)
+            return self.__mSession.get("https://oauth.vk.com/authorize", params=params, headers=header)
 
-        def sendAuthData(authPage: Response, login: str, password: str, header: dict) -> Response:
-            soup = BeautifulSoup(authPage.text, features = "html.parser")
+        def sendAuthData(authPage: Response, username: str, password: str, header: dict) -> Response:
+            soup = BeautifulSoup(authPage.text, features="html.parser")
             inputFields = soup.select("form input")
             data = {
                 "_origin": inputFields[0].attrs["value"],
                 "ip_h": inputFields[1].find_all("input")[0].attrs["value"],
                 "lg_h": inputFields[2].attrs["value"],
                 "to": inputFields[3].attrs["value"],
-                "email": login,
+                "email": username,
                 "pass": password,
             }
-            return self.__mSession.post("https://login.vk.com/?act=login&soft=1&utf8=1", data = data, headers = header)
+            return self.__mSession.post("https://login.vk.com/?act=login&soft=1&utf8=1", data=data, headers=header)
 
         def send2FA(authPage: Response, header: dict) -> Response:
-            soup = BeautifulSoup(authPage.text, features = "html.parser")
+            soup = BeautifulSoup(authPage.text, features="html.parser")
             url = "https://m.vk.com" + soup.find_all("form")[0].attrs["action"]
             data = {
                 "code": input2FA(),
                 "checked": "checked",
                 "remember": 1
             }
-            return self.__mSession.post(url, data = data, headers = header)
+            return self.__mSession.post(url, data=data, headers=header)
 
         def sendCaptcha(authPage: Response, header: dict) -> Response:
-            soup = BeautifulSoup(authPage.text, features = "html.parser")
+            soup = BeautifulSoup(authPage.text, features="html.parser")
             captcha = soup.select("img.captcha_img")[0]
             captchaResponse = self.__mSession.get("https://m.vk.com/" + captcha.attrs["src"])
             fileName = "Captcha_" + str(datetime.now().strftime("%Y.%m.%d_%H.%M")) + ".jpg"
@@ -121,18 +128,18 @@ class API:
                 "remember": 1,
                 "captcha_key": inputCaptcha()
             }
-            return self.__mSession.post("https://m.vk.com" + url, data = data, headers = header)
+            return self.__mSession.post("https://m.vk.com" + url, data=data, headers=header)
 
         def sendConfirmation(confPage: Response, header: dict) -> Response:
-            soup = BeautifulSoup(confPage.text, features = "html.parser")
+            soup = BeautifulSoup(confPage.text, features="html.parser")
             url = soup.find_all("form")[0].attrs["action"]
             data = {
                 "email_denied": 0,
             }
-            return self.__mSession.post(url, data = data, headers = header)
+            return self.__mSession.post(url, data=data, headers=header)
 
         def getPageType(page: Response) -> str:
-            soup = BeautifulSoup(page.text, features = "html.parser")
+            soup = BeautifulSoup(page.text, features="html.parser")
             inputFields = soup.select("form input")
             if inputFields[0].attrs["name"] == "code":
                 return "2FA"
@@ -141,7 +148,7 @@ class API:
             if inputFields[0].attrs["name"] == "email_denied":
                 return "CON"
             else:
-                raise TypeError
+                raise RuntimeError("WRONG USERNAME/PASSWORD")
 
         if self.__loadToken():
             pass
@@ -165,6 +172,8 @@ class API:
                         result = sendConfirmation(tmp, headers)
                     elif getPageType(tmp) == "CON":
                         result = sendConfirmation(tmp, headers)
+                    else:
+                        raise RuntimeError("WRONG 2FA CODE")
                 elif getPageType(tmp) == "CON":
                     result = sendConfirmation(tmp, headers)
                 self.__mAccessToken = result.url[45:130]
@@ -186,21 +195,34 @@ class API:
         for key, value in kwargs.items():
             data[key] = value
 
-        return self.__mSession.post(self.__mAPIBaseUrl + method, data = data).json()
+        response = self.__mSession.post(self.__mAPIBaseUrl + method, data = data).json()
+
+        if "error" in response:
+            raise APIError(response["error"]["error_code"], response["error"]["error_msg"])
+
+        return response
 
     def uploadDoc(self, fileType: str, fileName: str) -> dict:
         url = self.call("docs.getUploadServer", type=fileType)["response"]["upload_url"]
         files = {"file": open(fileName, "rb")}
         fileObj = self.__mSession.post(url, files=files).json()
+
+        if "error" in fileObj:
+            raise APIError(-1, fileObj["error_descr"])
+
         return self.call("docs.save", file=fileObj["file"])
 
-    def setLongPollServer(self, needPts: int = 0, lp_version: int = 3):
-        serverData = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
-        self.__mLongPollTs = serverData["response"]["ts"]
-        self.__mLongPollKey = serverData["response"]["key"]
-        self.__mLongPollServer = serverData["response"]["server"]
-
     def longPoll(self, mode: int = 202, wait: int = 25, version: int = 3) -> dict:
+
+        def setLongPollServer(needPts: int = 0, lp_version: int = 3):
+            serverData = self.call("messages.getLongPollServer", needPts=needPts, lp_version=lp_version)
+            self.__mLongPollTs = serverData["response"]["ts"]
+            self.__mLongPollKey = serverData["response"]["key"]
+            self.__mLongPollServer = serverData["response"]["server"]
+
+        if self.__mLongPollServer == "":
+            setLongPollServer()
+
         data = {
             "act": "a_check",
             "key": self.__mLongPollKey,
@@ -210,11 +232,22 @@ class API:
             "version": version
         }
         updates = self.__mSession.post("https://"+self.__mLongPollServer, data = data).json()
-        self.__mLongPollTs = updates["ts"]
-        return updates
+        if "failed" in updates:
+            if updates["failed"] == 2:
+                setLongPollServer()
+                data["key"] = self.__mLongPollKey
+                data["ts"] = self.__mLongPollTs
+                updates = self.__mSession.post("https://" + self.__mLongPollServer, data=data).json()
+                if "failed" in updates:
+                    raise APIError(-1, "LONGPOLL ERROR")
 
-    def handleLongPollMessage(self, eventObj: dict) -> dict:
+        self.__mLongPollTs = updates["ts"]
+        return updates["updates"]
+
+    def handleLongPollMessage(self, eventObj: list) -> dict:
         return self.call("messages.getById", message_ids=eventObj[1], extended=1)["response"]["items"][0]
+
+
 
 
 
