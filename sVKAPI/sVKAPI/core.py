@@ -192,16 +192,10 @@ class API:
         url = self.call("docs.getUploadServer", type=fileType)["response"]["upload_url"]
         files = {"file": open(fileName, "rb")}
         fileObj = self.__mSession.post(url, files=files).json()
-        try:
-            fileObj["file"]
-        except KeyError:
-            raise RuntimeError("FILE WAS NOT UPLOADED")
         return self.call("docs.save", file=fileObj["file"])
 
     def setLongPollServer(self, needPts: int = 0, lp_version: int = 3):
         serverData = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
-        if "error" in serverData and serverData["error"]["error_code"] == 15:
-            raise Exception("CANT ACCESS MESSAGES WITH CURRENT TOKEN (CONSIDER RECEIVING YOUR OWN AND CALL setToken() )")
         self.__mLongPollTs = serverData["response"]["ts"]
         self.__mLongPollKey = serverData["response"]["key"]
         self.__mLongPollServer = serverData["response"]["server"]
@@ -216,21 +210,10 @@ class API:
             "version": version
         }
         updates = self.__mSession.post("https://"+self.__mLongPollServer, data = data).json()
-        if "failed" in updates:
-            if updates["failed"] == 2:
-                self.setLongPollServer()
-                data["key"] = self.__mLongPollKey
-                data["ts"] = self.__mLongPollTs
-                updates = self.__mSession.post("https://" + self.__mLongPollServer, data=data).json()
-                if "failed" in updates:
-                    raise RuntimeError("LONGPOLL ERROR")
-
         self.__mLongPollTs = updates["ts"]
         return updates
 
     def handleLongPollMessage(self, eventObj: dict) -> dict:
-        if eventObj[0] != 4:
-            raise RuntimeError("HANDLING NON-MESSAGE EVENT (EVENT CODE SHOULD BE 4)")
         return self.call("messages.getById", message_ids=eventObj[1], extended=1)["response"]["items"][0]
 
 
