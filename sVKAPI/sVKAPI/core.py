@@ -68,14 +68,6 @@ class API:
             print("CAN'T LOAD TOKEN, TRYING TO AUTHENTICATE...")
             return False
 
-    def __checkAuth(self):
-        if not self.__mAuthPassed:
-            raise RuntimeError("CANT CALL THIS METHOD: authenticate() WASN'T CALLED")
-
-    def __checkLongPollInit(self):
-        if not self.__mLongPollInit:
-            raise RuntimeError("YOU NEED TO CALL setLongPollServer() BEFORE USING LONGPOLL")
-
     #Public
 
     def authenticate(self, **kwargs):
@@ -206,7 +198,6 @@ class API:
         print("TOKEN CHANGED " + self.__mAccessToken[0:4] + "***")
 
     def call(self, method:str, **kwargs) -> dict:
-        self.__checkAuth()
         data = {
             "access_token": self.__mAccessToken,
             "v": self.__mAPIVersion
@@ -217,8 +208,8 @@ class API:
 
         return self.__mSession.post(self.__mAPIBaseUrl + method, data = data).json()
 
+
     def uploadDoc(self, fileType: str, fileName: str) -> dict:
-        self.__checkAuth()
         url = self.call("docs.getUploadServer", type=fileType)["response"]["upload_url"]
         files = {"file": open(fileName, "rb")}
         fileObj = self.__mSession.post(url, files=files).json()
@@ -229,8 +220,8 @@ class API:
             raise FileExistsError("FILE WAS NOT UPLOADED")
         return self.call("docs.save", file=fileObj["file"])
 
-    def setLongPollServer(self, needPts: int = 1, lp_version: int = 3):
-        self.__checkAuth()
+
+    def setLongPollServer(self, needPts: int = 0, lp_version: int = 3):
         serverData = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
         if "error" in serverData and serverData["error"]["error_code"] == 15:
             raise Exception("CANT ACCESS MESSAGES WITH CURRENT TOKEN (CONSIDER RECEIVING YOUR OWN AND CALL setToken() )")
@@ -239,9 +230,8 @@ class API:
         self.__mLongPollKey = serverData["response"]["key"]
         self.__mLongPollServer = serverData["response"]["server"]
 
-    def longPoll(self, mode: int = 234, wait: int = 25, version: int = 3) -> dict:
-        self.__checkAuth()
-        self.__checkLongPollInit()
+
+    def longPoll(self, mode: int = 202, wait: int = 25, version: int = 3) -> dict:
         data = {
             "act": "a_check",
             "key": self.__mLongPollKey,
@@ -269,8 +259,6 @@ class API:
         return updates
 
     def handleLongPollMessage(self, eventObj: dict) -> dict:
-        self.__checkAuth()
-        self.__checkLongPollInit()
         if eventObj[0] != 4:
             raise RuntimeError("HANDLING NON-MESSAGE EVENT (EVENT CODE SHOULD BE 4)")
         return self.call("messages.getById", message_ids=eventObj[1], extended=1)["response"]["items"][0]
