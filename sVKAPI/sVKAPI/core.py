@@ -9,7 +9,6 @@ from base64 import b64encode, b64decode
 
 class API:
     __mAccessToken = ""
-    __mAuthPassed = False
     __mCustomToken = "N"
 
     __mAPIClientID = 7249628
@@ -18,7 +17,6 @@ class API:
 
     __mSession = Session()
 
-    __mLongPollInit = False
     __mLongPollTs = 0
     __mLongPollServer = ""
     __mLongPollKey = ""
@@ -191,11 +189,9 @@ class API:
         self.__mAuthPassed = True
 
     def setToken(self, newToken: str):
-        self.__mAuthPassed = True
         self.__mCustomToken = "Y"
         self.__mAccessToken = newToken
         self.__saveToken()
-        print("TOKEN CHANGED " + self.__mAccessToken[0:4] + "***")
 
     def call(self, method:str, **kwargs) -> dict:
         data = {
@@ -208,7 +204,6 @@ class API:
 
         return self.__mSession.post(self.__mAPIBaseUrl + method, data = data).json()
 
-
     def uploadDoc(self, fileType: str, fileName: str) -> dict:
         url = self.call("docs.getUploadServer", type=fileType)["response"]["upload_url"]
         files = {"file": open(fileName, "rb")}
@@ -216,10 +211,8 @@ class API:
         try:
             fileObj["file"]
         except KeyError:
-            print(fileObj)
             raise FileExistsError("FILE WAS NOT UPLOADED")
         return self.call("docs.save", file=fileObj["file"])
-
 
     def setLongPollServer(self, needPts: int = 0, lp_version: int = 3):
         serverData = self.call("messages.getLongPollServer", needPts = needPts, lp_version = lp_version)
@@ -229,7 +222,6 @@ class API:
         self.__mLongPollTs = serverData["response"]["ts"]
         self.__mLongPollKey = serverData["response"]["key"]
         self.__mLongPollServer = serverData["response"]["server"]
-
 
     def longPoll(self, mode: int = 202, wait: int = 25, version: int = 3) -> dict:
         data = {
